@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+:root {
+  /* iPad 預設 16px，有些人會覺得偏小：調到 17px */
+  font-size: 17px;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; }
+
+body {
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    "PingFang TC", "Noto Sans TC", "Microsoft JhengHei",
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+  font-size: 17px; /* 稍微放大基準字級 */
+}
