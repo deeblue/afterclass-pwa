@@ -1,36 +1,38 @@
-const API_BASE = import.meta.env.VITE_API_BASE
-const API_BEARER = import.meta.env.VITE_API_BEARER
+const BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "";
+const BEARER = import.meta.env.VITE_API_BEARER || ""; // 可選；若 Workers 有設 API_BEARER 建議前端也設
 
-async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(API_BEARER ? { Authorization: `Bearer ${API_BEARER}` } : {}),
-      ...(init?.headers || {})
-    }
-  })
+async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init.headers as Record<string, string> || {}),
+  };
+  if (BEARER) headers.Authorization = `Bearer ${BEARER}`;
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
-    const txt = await res.text().catch(() => '')
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${txt}`)
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText} ${text}`);
   }
-  return res.json()
+  return res.json() as Promise<T>;
 }
 
 export const api = {
-  health: () => http<{ ok: boolean; time: string }>('/api/health'),
-  getItems: (q: { n?: number; subject?: string; unit?: string; kc?: string; random?: 0|1; page?: number }) => {
-    const sp = new URLSearchParams()
-    if (q.n) sp.set('n', String(q.n))
-    if (q.subject) sp.set('subject', q.subject)
-    if (q.unit) sp.set('unit', q.unit)
-    if (q.kc) sp.set('kc', q.kc)
-    if (q.random) sp.set('random', String(q.random))
-    if (q.page) sp.set('page', String(q.page))
-    return http(`/api/items?${sp.toString()}`)
-  },
-  getItem: (id: string) => http(`/api/items/${encodeURIComponent(id)}`),
-  submitAttempts: (attempts: any[]) => http(`/api/attempts/bulk`, { method: 'POST', body: JSON.stringify({ attempts }) }),
-  evalProcess: (payload: { stem: string; solution?: string; steps: any; policy?: {strong?: boolean} }) =>
-    http(`/api/process/eval`, { method: 'POST', body: JSON.stringify(payload) })
-}
+  // 健康檢查
+  health: () => fetchJson<{ ok: boolean; time: string }>(`/api/health`),
+
+  // 抓題：只要傳 querystring，如 "?n=4&random=1"
+  getItems: (qs = "") => fetchJson<{ page: number; count: number; items: any[] }>(`/api/items${qs}`),
+
+  // 批次上傳作答
+  postAttemptsBulk: (payload: { attempts: any[] }) =>
+    fetchJson<{ inserted: number; updated: number; duplicates: number }>(`/api/attempts/bulk`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // 計算過程評估
+  postEval: (payload: { stem: string; solution?: string; steps: any; policy?: any }) =>
+    fetchJson<{ model: string; result: any }>(`/api/process/eval`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
