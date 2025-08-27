@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import AppHeader from "./components/layout/AppHeader";
 import Container from "./components/layout/Container";
+import Footer from './components/layout/Footer'
 
 import Home from "./pages/Home";
 import Quiz from "./pages/Quiz";
@@ -21,6 +22,9 @@ export default function App() {
           </Routes>
         </Container>
       </main>
+      <Footer />
     </div>
   );
 }
+
+

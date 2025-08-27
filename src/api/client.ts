@@ -1,13 +1,26 @@
 const BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "";
 const BEARER = import.meta.env.VITE_API_BEARER || ""; // 可選；若 Workers 有設 API_BEARER 建議前端也設
+const V = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev";
 
 async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init.headers as Record<string, string> || {}),
   };
+
+  const url = new URL(path, BASE);
+  url.searchParams.set("v", V);
+
   if (BEARER) headers.Authorization = `Bearer ${BEARER}`;
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  const res = await fetch(url.toString(), {
+    ...init,
+    headers: {
+      "Content-Type":"application/json",
+      ...(init?.headers || {})
+    }
+  });
+  
+  // const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText} ${text}`);
