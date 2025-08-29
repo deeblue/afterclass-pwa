@@ -1,3 +1,4 @@
+import type { Item } from "../types";
 const BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, "") || "";
 const BEARER = import.meta.env.VITE_API_BEARER || ""; // 可選；若 Workers 有設 API_BEARER 建議前端也設
 const V = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev";
@@ -48,4 +49,28 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  postItem: (payload: Partial<Item> & {
+    item_type: string;
+    stem: string;
+    subject?: string;
+    grade?: string;
+    unit?: string;
+    difficulty?: number;
+    kcs?: string[] | string;
+    tags?: string[] | string;
+    choices?: any;
+    answer?: any;
+    solution?: string;
+    status?: string; // "draft" | "published"
+  }) =>
+    fetchJson(`/api/items`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(BEARER ? { "Authorization": `Bearer ${BEARER}` } : {})
+      },
+      body: JSON.stringify(payload)
+    }),
+
 };

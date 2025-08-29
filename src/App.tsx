@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import AppHeader from "./components/layout/AppHeader";
 import Container from "./components/layout/Container";
 import Footer from './components/layout/Footer'
+import AdminImport from "./pages/AdminImport";
 
 import Home from "./pages/Home";
 import Quiz from "./pages/Quiz";
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/quiz" element={<Quiz />} />
             <Route path="/review" element={<Review />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/admin/import" element={<AdminImport />} />
           </Routes>
         </Container>
       </main>
