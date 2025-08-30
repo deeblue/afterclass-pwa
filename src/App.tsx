@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import AppHeader from "./components/layout/AppHeader";
 import Container from "./components/layout/Container";
 import Footer from './components/layout/Footer'
-import AdminImport from "./pages/AdminImport";
+import AdminImport from "./pages/Ingest";
 
 import Home from "./pages/Home";
 import Quiz from "./pages/Quiz";
