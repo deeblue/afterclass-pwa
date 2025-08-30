@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api/client"; // 你現有的 fetch 包裝，會帶 BEARER
+import { api } from "../api/client"; // 這裡的 api 是函式集合
 
 export default function Ingest() {
   const [imgDataUrl, setImgDataUrl] = useState<string>("");
@@ -21,12 +21,13 @@ export default function Ingest() {
     if (!imgDataUrl) return;
     setLoading(true); setMsg("");
     try {
-      const res = await api.post("/api/ingest/vision", {
+      // 走我們定義的函式，不用 .post
+      const res = await api.postIngestVision({
         image_data_url: imgDataUrl,
         subject, grade, unit
       });
       setItems(res.items || []);
-      setMsg(`辨識完成，共 ${res.count || (res.items?.length || 0)} 題，請檢查後匯入。`);
+      setMsg(`辨識完成，共 ${res.count ?? (res.items?.length ?? 0)} 題，請檢查後匯入。`);
     } catch (e: any) {
       setMsg("辨識失敗：" + String(e?.message || e));
     } finally {
@@ -35,12 +36,12 @@ export default function Ingest() {
   }
 
   async function saveSelected() {
-    const selected = items.filter((it) => !it._skip); // 勾掉「跳過」的不要
+    const selected = items.filter((it) => !it._skip);
     if (!selected.length) { setMsg("沒有勾選要匯入的題目"); return; }
     setLoading(true); setMsg("");
     try {
-      const res = await api.post("/api/items/upsert", { items: selected });
-      setMsg(`已匯入 ${res.upserted} 題`);
+      const res = await api.postItemsUpsert({ items: selected, mode: "upsert" });
+      setMsg(`已匯入 ${res.upserted ?? selected.length} 題`);
     } catch (e: any) {
       setMsg("匯入失敗：" + String(e?.message || e));
     } finally {
@@ -79,13 +80,17 @@ export default function Ingest() {
           <div className="text-sm">預覽結果（可取消勾選不要匯入的題目）</div>
           <ul className="space-y-2">
             {items.map((it, i) => (
-              <li key={it.id} className="border rounded p-3">
+              <li key={it.id ?? i} className="border rounded p-3">
                 <label className="flex items-start gap-2">
-                  <input type="checkbox" checked={!it._skip} onChange={(e)=>setItems(prev=>{
-                    const copy = [...prev]; copy[i] = { ...prev[i], _skip: !e.target.checked }; return copy;
-                  })}/>
+                  <input
+                    type="checkbox"
+                    checked={!it._skip}
+                    onChange={(e)=>setItems(prev=>{
+                      const copy = [...prev]; copy[i] = { ...prev[i], _skip: !e.target.checked }; return copy;
+                    })}
+                  />
                   <div>
-                    <div className="text-sm font-semibold">[{it.item_type}] {it.stem?.slice(0, 120)}</div>
+                    <div className="text-sm font-semibold">[{it.item_type}] {String(it.stem ?? "").slice(0, 120)}</div>
                     {Array.isArray(it.choices) && (
                       <ol className="list-disc ml-6 text-sm">
                         {it.choices.map((c: any, idx: number) => <li key={idx}>{String(c)}</li>)}
@@ -94,7 +99,7 @@ export default function Ingest() {
                     {it.answer != null && (
                       <pre className="text-xs bg-slate-50 p-2 rounded mt-2">{JSON.stringify(it.answer, null, 2)}</pre>
                     )}
-                    {it.solution && <div className="text-xs mt-1 text-slate-600">解析：{it.solution.slice(0, 140)}</div>}
+                    {it.solution && <div className="text-xs mt-1 text-slate-600">解析：{String(it.solution).slice(0, 140)}</div>}
                   </div>
                 </label>
               </li>

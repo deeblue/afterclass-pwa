@@ -73,4 +73,22 @@ export const api = {
       body: JSON.stringify(payload)
     }),
 
+  // 新增：圖片 OCR 辨識
+  postIngestVision: (body: {
+    image_data_url: string;
+    subject: string;
+    grade: string;
+    unit: string;
+  }) =>
+    fetchJson(`/api/ingest/vision`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  // 新增：批次 upsert 題目
+  postItemsUpsert: (body: { items: any[]; mode?: "upsert" | "insert" }) =>
+    fetchJson(`/api/items/upsert`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
