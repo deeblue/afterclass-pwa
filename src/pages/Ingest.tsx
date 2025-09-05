@@ -38,7 +38,7 @@ export default function Ingest() {
   const [grade, setGrade] = useState("g7");
   const [unit, setUnit] = useState("unsorted");
 
-  const [useStrong, setUseStrong] = useState(false); // ✅ 新增：是否用強模型
+  const [useStrong, setUseStrong] = useState(false); // ✅ 是否用強模型
 
   const [items, setItems] = useState<DraftItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +48,9 @@ export default function Ingest() {
   const [phase, setPhase] = useState<"idle"|"upload"|"model"|"parse"|"done">("idle");
   const [resp, setResp] = useState<IngestResp | null>(null);
   const [startedAt, setStartedAt] = useState<number>(0);
+
+  // ✅ 題庫管理用的 loading 狀態
+  const [adminBusy, setAdminBusy] = useState(false);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -127,6 +130,37 @@ export default function Ingest() {
       setMsg("匯入失敗：" + String(e?.message || e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ✅ 先備份再清除題庫
+  async function backupThenClear() {
+    if (adminBusy) return;
+    setAdminBusy(true);
+    try {
+      // 1) 先下載備份（/api/items/backup）
+      const blob = await api.getItemsBackup();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().slice(0, 19).replace(/:/g, "_");
+      a.href = url;
+      a.download = `items-backup-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // 2) 確認後清除（/api/items/clear）
+      const ok = window.confirm("已下載備份。是否確定要清除整個題庫？此動作不可還原。");
+      if (!ok) return;
+
+      const res = await api.deleteItems();
+      alert(`清除完成：刪除了 ${res.deleted ?? 0} 題。`);
+
+      // 若目前頁面上有預覽清單，清掉避免誤會
+      setItems([]);
+    } catch (e: any) {
+      alert("操作失敗：" + String(e?.message || e));
+    } finally {
+      setAdminBusy(false);
     }
   }
 
@@ -311,6 +345,19 @@ export default function Ingest() {
           </button>
         </div>
       )}
+
+      {/* ✅ 題庫管理工具：先備份再清除 */}
+      <div className="mt-8 border-t pt-4 space-y-3">
+        <h2 className="text-sm font-bold text-red-700">⚠️ 題庫管理</h2>
+        <p className="text-xs text-slate-600">清除前會先下載備份，請小心操作。</p>
+        <button
+          className="px-4 py-2 border rounded bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50"
+          onClick={backupThenClear}
+          disabled={adminBusy}
+        >
+          {adminBusy ? "處理中…" : "備份並清除全部題庫"}
+        </button>
+      </div>
     </div>
   );
 }
