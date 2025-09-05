@@ -22,21 +22,23 @@ type DraftItem = {
 type IngestResp = {
   count?: number;
   items?: DraftItem[];
-  // 以下皆為「可選」：不同後端可能會提供
   model?: string;
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  raw?: any;          // 有些實作會把原始模型回應掛在 raw
-  raw_text?: string;  // 或者提供文字
-  meta?: any;         // 例如抽題/解析診斷資訊
+  raw?: any;
+  raw_text?: string;
+  meta?: any;
   errors?: string[];
   duration_ms?: number;
 };
 
 export default function Ingest() {
   const [imgDataUrl, setImgDataUrl] = useState<string>("");
+
   const [subject, setSubject] = useState("math");
   const [grade, setGrade] = useState("g7");
   const [unit, setUnit] = useState("unsorted");
+
+  const [useStrong, setUseStrong] = useState(false); // ✅ 新增：是否用強模型
 
   const [items, setItems] = useState<DraftItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,13 +46,14 @@ export default function Ingest() {
 
   // 額外：顯示「辨識過程 / 原始回應」
   const [phase, setPhase] = useState<"idle"|"upload"|"model"|"parse"|"done">("idle");
-  const [resp, setResp] = useState<IngestResp | null>(null);   // 後端回傳原文
+  const [resp, setResp] = useState<IngestResp | null>(null);
   const [startedAt, setStartedAt] = useState<number>(0);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const dataUrl = await fileToDataUrl(f);
+    // ✅ 上傳前等比縮圖（最長邊 1600px），壓成 jpeg
+    const dataUrl = await fileToDataUrlResized(f, 1600, 0.9);
     setImgDataUrl(dataUrl);
     setItems([]);
     setResp(null);
@@ -68,17 +71,18 @@ export default function Ingest() {
     setItems([]);
 
     try {
-      // 1) 準備 payload（本頁不改 client.ts 介面）
+      // 1) payload：把 useStrong 傳進去
       const payload = {
         image_data_url: imgDataUrl,
         subject,
         grade,
         unit,
+        strong: useStrong, // ✅ 傳給 API（client.ts 會把它轉成 ?strong=1）
       };
 
       // 2) call API
       setPhase("model");
-      const res: IngestResp = await api.postIngestVision(payload);
+      const res: IngestResp = await api.postIngestVision(payload as any);
 
       // 3) parse
       setPhase("parse");
@@ -117,7 +121,7 @@ export default function Ingest() {
         items: selected.map(stripClientFields),
         mode: "upsert",
       });
-      const ok = res?.upserted ?? selected.length;
+      const ok = (res as any)?.upserted ?? selected.length;
       setMsg(`已匯入 ${ok} 題`);
     } catch (e: any) {
       setMsg("匯入失敗：" + String(e?.message || e));
@@ -165,6 +169,17 @@ export default function Ingest() {
           onChange={(e) => setUnit(e.target.value)}
           placeholder="unit"
         />
+
+        {/* ✅ 使用強模型 */}
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={useStrong}
+            onChange={(e) => setUseStrong(e.target.checked)}
+          />
+          <span>使用強模型（gpt-4o）</span>
+        </label>
+
         <button
           className="px-3 py-1 border rounded bg-white hover:bg-slate-50"
           onClick={runIngest}
@@ -305,11 +320,18 @@ function stripClientFields(it: DraftItem) {
   return rest;
 }
 
-async function fileToDataUrl(f: File) {
-  return new Promise<string>((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result));
-    fr.onerror = reject;
-    fr.readAsDataURL(f);
-  });
+// ✅ 等比縮圖（最長邊 maxSide），輸出 JPEG dataURL
+async function fileToDataUrlResized(file: File, maxSide = 1600, quality = 0.9): Promise<string> {
+  const imgBitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxSide / Math.max(imgBitmap.width, imgBitmap.height));
+  const w = Math.round(imgBitmap.width * scale);
+  const h = Math.round(imgBitmap.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(imgBitmap, 0, 0, w, h);
+
+  return canvas.toDataURL("image/jpeg", quality);
 }

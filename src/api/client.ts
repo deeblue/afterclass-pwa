@@ -79,11 +79,15 @@ export const api = {
     subject: string;
     grade: string;
     unit: string;
-  }) =>
-    fetchJson(`/api/ingest/vision`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    strong?: boolean; // 新增
+  }) => {
+      const qs = body.strong ? "?strong=1" : "";
+      const { strong, ...payload } = body; // strong 只進 query，不進 body
+      return fetchJson(`/api/ingest/vision${qs}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+  },
 
   // 新增：批次 upsert 題目
   postItemsUpsert: (body: { items: any[]; mode?: "upsert" | "insert" }) =>
@@ -91,4 +95,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  
+  getBlob: async (path: string): Promise<Blob> => {
+    const url = new URL(path, BASE);
+    url.searchParams.set("v", V);
+
+    const headers: Record<string, string> = {};
+    if (BEARER) headers.Authorization = `Bearer ${BEARER}`;
+
+    const res = await fetch(url.toString(), { headers });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText} ${text}`);
+    }
+    return res.blob();
+  },
+
 };
