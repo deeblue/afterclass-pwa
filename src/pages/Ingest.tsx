@@ -138,29 +138,36 @@ export default function Ingest() {
     if (adminBusy) return;
     setAdminBusy(true);
     try {
-      // 1) 先下載備份（/api/items/backup）
-      const blob = await api.getItemsBackup();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const ts = new Date().toISOString().slice(0, 19).replace(/:/g, "_");
-      a.href = url;
-      a.download = `items-backup-${ts}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+        // 1) 觸發後端備份到 KV（只備份 items；要包含 attempts/kc_stats 可改 "all"）
+        await api.adminBackup("items");
 
-      // 2) 確認後清除（/api/items/clear）
-      const ok = window.confirm("已下載備份。是否確定要清除整個題庫？此動作不可還原。");
-      if (!ok) return;
+        // 2) 下載最新備份檔
+        const blob = await api.adminBackupDownload();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ts = new Date().toISOString().slice(0, 19).replace(/:/g, "_");
+        a.href = url;
+        a.download = `afterclass-backup-${ts}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
 
-      const res = await api.deleteItems();
-      alert(`清除完成：刪除了 ${res.deleted ?? 0} 題。`);
+        // 3) 再次確認，並附上今天日期（後端需要）
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const input = window.prompt(`將清空題庫（items/attempts/kc_stats）。\n為避免誤觸，請輸入今天日期確認：${today}`);
+        if (input !== today) {
+        alert("已取消：確認字串不符。");
+        return;
+        }
 
-      // 若目前頁面上有預覽清單，清掉避免誤會
-      setItems([]);
+        const res = await api.adminPurge(today, "items");
+        alert(`清除完成：${(res as any)?.cleared?.join(", ") || "done"}`);
+
+        // UI 上若有暫存題目清單，清空避免誤會
+        setItems([]);
     } catch (e: any) {
-      alert("操作失敗：" + String(e?.message || e));
+        alert("操作失敗：" + String(e?.message || e));
     } finally {
-      setAdminBusy(false);
+        setAdminBusy(false);
     }
   }
 

@@ -111,4 +111,29 @@ export const api = {
     return res.blob();
   },
 
+  // 1) 觸發備份到 KV（預設只備份 items；要全量就傳 "all"）
+  adminBackup: (scope: "items" | "all" = "items") =>
+    fetchJson(`/api/admin/backup`, {
+      method: "POST",
+      body: JSON.stringify({ scope }),
+    }),
+
+  // 2) 下載最新備份（KV 中的 backup:items:latest）
+  adminBackupDownload: async () => {
+    const url = new URL(`/api/admin/backup/latest`, BASE);
+    url.searchParams.set("v", V);
+    const res = await fetch(url.toString(), {
+      headers: BEARER ? { Authorization: `Bearer ${BEARER}` } : {},
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.blob(); // 交給呼叫端觸發下載
+  },
+
+  // 3) 清庫（會自動再備份一次），需要 confirm 當天日期
+  adminPurge: (confirm: string, scope: "items" | "all" = "items") =>
+    fetchJson(`/api/admin/purge`, {
+      method: "POST",
+      body: JSON.stringify({ confirm, scope }),
+    }),
+
 };
