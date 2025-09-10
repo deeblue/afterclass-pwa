@@ -89,6 +89,12 @@ export const api = {
       });
   },
 
+  postGrade: (payload: { item_id: string; raw_answer: any }) =>
+  fetchJson(`/api/grade`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+
   // 新增：批次 upsert 題目
   postItemsUpsert: (body: { items: any[]; mode?: "upsert" | "insert" }) =>
     fetchJson(`/api/items/upsert`, {
