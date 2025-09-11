@@ -9,6 +9,9 @@ import Quiz from "./pages/Quiz";
 import Review from "./pages/Review";
 import Settings from "./pages/Settings";
 
+import AdminIssues from "./pages/AdminIssues";
+import AdminTools from "./pages/AdminTools";
+
 export default function App() {
   return (
     <div className="min-h-dvh bg-white text-gray-900">
@@ -21,6 +24,8 @@ export default function App() {
             <Route path="/review" element={<Review />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin/import" element={<AdminImport />} />
+            <Route path="/admin/issues" element={<AdminIssues />} />
+            <Route path="/admin/tools" element={<AdminTools />} />
           </Routes>
         </Container>
       </main>

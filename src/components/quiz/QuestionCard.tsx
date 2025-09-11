@@ -10,6 +10,7 @@ import MatchingInput from "./QuestionRenderer/MatchingInput";
 import TableFillInput from "./QuestionRenderer/TableFillInput";
 import Workpad from "./QuestionRenderer/Workpad";
 import ProcessEvaluate from "./ProcessEvaluate";
+import ReportIssuePanel from "./ReportIssuePanel";
 
 /** 判斷 UI 要渲染的題型（將 true/false 視覺化為 'truefalse'） */
 function resolveRenderKind(item: Item): Item["item_type"] | "truefalse" {
@@ -147,12 +148,17 @@ export default function QuestionCard({
             )}
     
             {/* 手寫板（選用）：存到答案物件中 */}
-            <div className="mt-4">
+            {/* <div className="mt-4"> */}
             <Workpad onExport={(json, png) => onChangeWrap({ ...(value||{}), work: { json, png } })} />
             
             {/* 這段是新增：把手寫筆跡與文字步驟送去評估 */}
             <ProcessEvaluate item={item} answerValue={uiValue} />
-            </div>
+            {/* </div> */}
+
+            {/* <div className="border rounded p-4 space-y-2"> */}
+            <ReportIssuePanel item={item} />
+            {/* </div> */}
+
         </div>
     );
 }

@@ -89,11 +89,43 @@ export const api = {
       });
   },
 
+  // ✅ 新增：問題回報 / 審核 / 修正
+  postIssue: (payload: {
+    item_id: string;
+    issue_type: "answer" | "wording" | "choice" | "format" | "other";
+    detail: string;
+    severity?: "low" | "mid" | "high";
+    proposed?: Partial<Pick<Item, "stem" | "choices" | "answer" | "solution">>;
+  }) => fetchJson(`/api/items/${payload.item_id}/issues`, { method: "POST", body: JSON.stringify(payload) }),
+
+  getIssues: (status: "open" | "resolved" | "dismissed" | "all" = "open") =>
+    fetchJson<{ issues: any[] }>(`/api/admin/issues?status=${encodeURIComponent(status)}`),
+
+  resolveIssue: (issueId: string, action: "resolve" | "dismiss", note?: string) =>
+    fetchJson(`/api/admin/issues/${issueId}`, { method: "PATCH", body: JSON.stringify({ action, note }) }),
+
+  patchItem: (id: string, patch: Partial<Item>) =>
+    fetchJson(`/api/items/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+  getRevisions: (itemId: string) =>
+    fetchJson<{ revisions: any[] }>(`/api/items/${itemId}/revisions`),
+
+  restoreRevision: (itemId: string, revisionId: string) =>
+    fetchJson(`/api/items/${itemId}/revisions/${revisionId}/restore`, { method: "POST" }),
+
+  // ✅ 新增：備份/清庫（+ 下載）
+  postAdminBackup: (scope: "items" | "all" = "items") =>
+    fetchJson(`/api/admin/backup`, { method: "POST", body: JSON.stringify({ scope }) }),
+  getAdminBackupLatestBlob: () => fetchBlob(`/api/admin/backup/latest`),
+  postAdminPurge: (confirm: string, scope: "items" | "all" = "items") =>
+    fetchJson(`/api/admin/purge`, { method: "POST", body: JSON.stringify({ confirm, scope }) }),
+
+
   postGrade: (payload: { item_id: string; raw_answer: any }) =>
-  fetchJson(`/api/grade`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  }),
+    fetchJson(`/api/grade`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   // 新增：批次 upsert 題目
   postItemsUpsert: (body: { items: any[]; mode?: "upsert" | "insert" }) =>
