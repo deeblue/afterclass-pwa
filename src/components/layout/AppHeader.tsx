@@ -43,6 +43,14 @@ export default function AppHeader() {
             {/* <SettingsIcon className="mr-1 inline-block h-4 w-4" /> */}
             題庫匯入（Admin）
           </NavLink>
+          <NavLink to="/admin/issues" className={({ isActive }) => navCx(isActive)}>
+            {/* <SettingsIcon className="mr-1 inline-block h-4 w-4" /> */}
+            題目檢視/回報 (Admin)
+          </NavLink>
+          <NavLink to="/admin/tools" className={({ isActive }) => navCx(isActive)}>
+            {/* <SettingsIcon className="mr-1 inline-block h-4 w-4" /> */}
+            管理工具（Admin）
+          </NavLink>
         </nav>
 
         {/* 右側可放占位（登入、狀態、使用者） */}
