@@ -47,7 +47,7 @@ export default function Workpad({
 
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border">
+      <div className="rounded-lg border workpad-canvas-wrapper">
         <ReactSketchCanvas
           ref={ref}
           className="w-full h-64"
@@ -56,6 +56,7 @@ export default function Workpad({
           canvasColor="#fff"
           withTimestamp
           onChange={handleChange}
+          allowOnlyPointerType="all"  // 允許手指 & Apple Pencil 都能畫
         />
       </div>
       <div className="flex gap-2">

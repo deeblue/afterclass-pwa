@@ -89,6 +89,25 @@ export const api = {
       });
   },
 
+  // 新增：WorkPad 影像 → 轉寫＋評估（strong 放 body.policy.strong）
+  postEvalVision: (body: {
+    item_id?: string;                     // 可選：題目 id，方便後端記錄
+    stem: string;                         // 題幹（給轉寫/評估當上下文）
+    solution?: string;                    // 參考解（可省略）
+    workpad_image_data_url: string;       // data:image/jpeg;base64,...
+    strong?: boolean;                     // 這支是放到 policy.strong
+  }) => {
+    const { strong, ...rest } = body;
+    const payload = {
+      ...rest,
+      policy: { strong: !!strong }        // 後端 index.ts 讀 body.policy?.strong
+    };
+    return fetchJson(`/api/process/eval-vision`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   // ✅ 新增：問題回報 / 審核 / 修正
   postIssue: (payload: {
     item_id: string;

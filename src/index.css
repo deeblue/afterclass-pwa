@@ -16,3 +16,23 @@ body {
   line-height: 1.65;
   font-size: 17px; /* 稍微放大基準字級 */
 }
+
+/* ---------- WorkPad 防誤觸（iPad / Apple Pencil / 手指） ---------- */
+/* 作用於畫布外層容器，避免被瀏覽器誤判為選取、長按選單、拖曳、兩指縮放等 */
+.workpad-canvas-wrapper {
+  touch-action: none;             /* 禁兩指縮放/拖曳/雙擊縮放 */
+  -webkit-user-select: none;
+  user-select: none;              /* 禁選取 */
+  -webkit-touch-callout: none;    /* iOS 禁止長按選單 */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: contain;   /* 阻止滾動連鎖 */
+}
+
+/* 內層 <canvas> 也鎖住相關行為，確保事件直達畫布 */
+.workpad-canvas-wrapper canvas {
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
