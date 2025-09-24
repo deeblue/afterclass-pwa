@@ -40,6 +40,43 @@ async function fetchBlob(path: string, init: RequestInit = {}): Promise<Blob> {
   return res.blob();
 }
 
+/** ---- local types for the new unified submit ---- **/
+export type RawAnswer =
+  | { kind: "single"; index: number }
+  | { kind: "multiple"; indices: number[] }
+  | { kind: "numeric"; value: string; tolerance?: string }
+  | { kind: "text"; text: string; accept?: string[] }
+  | { kind: "cloze"; blanks: string[] }
+  | { kind: "ordering"; order: number[] }
+  | { kind: "matching"; pairs: [string, string][] }
+  | { kind: "tablefill"; cells: string[][] };
+
+export type PostAttemptSubmitPayload = {
+  item_id: string;
+  user_id?: string;
+  raw_answer: RawAnswer;
+  // 可選（評估步驟）
+  evaluate_steps?: boolean;
+  process_json?: any;
+  workpad_image_data_url?: string; // data:image/...
+  stem?: string;
+  solution?: string;
+  policy?: { strong?: boolean };
+  // 其他可選欄位
+  elapsed_sec?: number;
+  device_id?: string;
+  session_id?: string;
+};
+
+export type PostAttemptSubmitResponse = {
+  ok: boolean;
+  attempt_id: string;
+  item_id: string;
+  correct: 0 | 1;
+  steps_evaluated?: boolean;
+  step_eval?: any; // 後端會回傳 /api/process/eval* 的結果
+};
+
 /** ---- API ---- **/
 export const api = {
   // 健康檢查
@@ -48,14 +85,21 @@ export const api = {
   // 抓題（自行傳 querystring，如 "?n=4&random=1"）
   getItems: (qs = "") => fetchJson<{ page: number; count: number; items: any[] }>(`/api/items${qs}`),
 
-  // 批次上傳作答
+  // ✅ 新增：統一提交（提交答案即判定；可選步驟評估）
+  postAttemptSubmit: (payload: PostAttemptSubmitPayload) =>
+    fetchJson<PostAttemptSubmitResponse>(`/api/attempts/submit`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // 批次上傳作答（保留給離線/批次匯入用）
   postAttemptsBulk: (payload: { attempts: any[] }) =>
     fetchJson<{ inserted: number; updated: number; duplicates: number; failures?: any[] }>(`/api/attempts/bulk`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
-  // 計算過程（JSON steps）評估
+  // 計算過程（JSON steps）評估（可選）
   postEval: (payload: { stem: string; solution?: string; steps: any; policy?: any }) =>
     fetchJson<{ model: string; result: any }>(`/api/process/eval`, {
       method: "POST",
@@ -152,7 +196,7 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  // 判題（不洩漏官方答案）
+  // 判題（不洩漏官方答案）— 若你全面改用 postAttemptSubmit，這支可逐步退場
   postGrade: (payload: { item_id: string; raw_answer: any }) =>
     fetchJson(`/api/grade`, {
       method: "POST",

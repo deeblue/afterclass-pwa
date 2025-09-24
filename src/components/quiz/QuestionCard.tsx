@@ -1,4 +1,7 @@
+import { useState } from "react";
 import type { Item } from "../../types";
+import { api, type RawAnswer } from "../../api/client";
+
 import SingleChoice from "./QuestionRenderer/SingleChoice";
 import MultipleChoice from "./QuestionRenderer/MultipleChoice";
 import NumericInput from "./QuestionRenderer/NumericInput";
@@ -35,7 +38,6 @@ function normalizeInboundValue(renderKind: string, rawValue: any) {
   return rawValue;
 }
 
-
 /** 將「UI 回傳值」轉成「上層/後端要的值」：truefalse → single */
 function normalizeOutboundValue(renderKind: string, uiValue: any) {
   if (renderKind === "truefalse" && uiValue?.kind === "truefalse") {
@@ -46,119 +48,152 @@ function normalizeOutboundValue(renderKind: string, uiValue: any) {
 }
 
 export default function QuestionCard({
-    item, value, onChange
+  item, value, onChange, userId = "anon",
 }: {
-    item: Item;
-    value: any;
-    onChange: (v:any)=>void;
+  item: Item;
+  value: any;
+  onChange: (v: any) => void;
+  /** 可選：若上層有 userId 可傳下來做記錄 */
+  userId?: string;
 }) {
-    const renderKind = resolveRenderKind(item);
-    const uiValue = normalizeInboundValue(renderKind, value);
-        
-    // 若後端種子用不同名稱，這裡做映射
-    const kind = ((): string => {
-        const k = item.item_type;
-        if (k === "tf" || k === "judge") return "truefalse";
-        return k;
-    })();
+  const renderKind = resolveRenderKind(item);
+  const uiValue = normalizeInboundValue(renderKind, value);
 
-    // 將 truefalse 送交前轉 single（如果你想讓後端沿用 single 判分）
-    const onChangeWrap = (v:any) => {
-        const outbound = normalizeOutboundValue(renderKind, v);
-        onChange(outbound);
-    };
+  // 將 truefalse 送交前轉 single（如果你想讓後端沿用 single 判分）
+  const onChangeWrap = (v: any) => {
+    const outbound = normalizeOutboundValue(renderKind, v);
+    onChange(outbound);
+  };
 
-    return (
-        
-        <div className="rounded-2xl border p-4 shadow-sm bg-white">
-            <div className="mb-3 whitespace-pre-wrap">{item.stem}</div>
+  // --- 這裡開始是「提交答案」的狀態與動作 ---
+  const [submitting, setSubmitting] = useState(false);
+  const [judge, setJudge] = useState<null | 0 | 1>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-            {renderKind === "single"     && (
-                <SingleChoice
-                choices={item.choices ?? []}
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}            
+  // 由目前 value 取得要提交的 raw_answer（已做 truefalse → single 正規化）
+  const rawAnswerForSubmit: RawAnswer | null = value
+    ? (normalizeOutboundValue(renderKind, value) as RawAnswer)
+    : null;
 
-            {renderKind === "multiple"   && (
-                <MultipleChoice
-                choices={item.choices ?? []}
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}
+  async function onSubmitAnswer() {
+    if (!rawAnswerForSubmit) return;
+    setSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const res = await api.postAttemptSubmit({
+        item_id: item.id,
+        user_id: userId || "anon",
+        raw_answer: rawAnswerForSubmit,
+      });
+      setJudge(res?.correct === 1 ? 1 : 0);
+    } catch (e: any) {
+      setErrorMsg(String(e?.message || e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  // --- 提交答案邏輯到此 ---
 
-            {renderKind === "numeric"    && (
-                <NumericInput
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}
+  return (
+    <div className="rounded-2xl border p-4 shadow-sm bg-white space-y-3">
+      <div className="mb-3 whitespace-pre-wrap">{item.stem}</div>
 
-            {renderKind === "text"       && (
-                <TextInput
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}
+      {renderKind === "single" && (
+        <SingleChoice
+          choices={item.choices ?? []}
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
 
-            {renderKind === "truefalse"  && (
-                <TrueFalse
-                value={uiValue}           // 這裡用 truefalse 的值顯示選中狀態
-                onChange={onChangeWrap}   // 但 onChangeWrap 會轉回 single 再丟上層保存
-                // labels 可自訂，不傳則預設 ["正確","錯誤"]
-                />
-            )}
+      {renderKind === "multiple" && (
+        <MultipleChoice
+          choices={item.choices ?? []}
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
 
-            {renderKind === "cloze"      && (
-                <ClozeInput
-                value={uiValue}
-                onChange={onChangeWrap}
-                blanks={(item.answer as any)?.blanks?.length ?? 1}
-                />
-            )}
+      {renderKind === "numeric" && (
+        <NumericInput
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
 
-            {renderKind === "ordering"   && (
-                <OrderingInput
-                items={item.choices ?? []}
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}
+      {renderKind === "text" && (
+        <TextInput
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
 
-            {renderKind === "matching"   && (
-                <MatchingInput
-                left={(item.choices ?? []).slice(0, Math.ceil((item.choices?.length ?? 2) / 2))}
-                right={(item.choices ?? []).slice(Math.ceil((item.choices?.length ?? 2) / 2))}
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}
+      {renderKind === "truefalse" && (
+        <TrueFalse
+          value={uiValue}          // UI 用 truefalse
+          onChange={onChangeWrap}  // 送出時轉回 single
+        />
+      )}
 
-            {renderKind === "tablefill"  && (
-                <TableFillInput
-                shape={{
-                    rows: (item.answer as any)?.cells?.length ?? 2,
-                    cols: (item.answer as any)?.cells?.[0]?.length ?? 2
-                }}
-                value={uiValue}
-                onChange={onChangeWrap}
-                />
-            )}
-    
-            {/* 手寫板（選用）：存到答案物件中 */}
-            {/* <div className="mt-4"> */}
-            <Workpad onExport={(json, png) => onChangeWrap({ ...(value||{}), work: { json, png } })} />
-            
-            {/* 這段是新增：把手寫筆跡與文字步驟送去評估 */}
-            <ProcessEvaluate item={item} answerValue={uiValue} />
-            {/* </div> */}
+      {renderKind === "cloze" && (
+        <ClozeInput
+          value={uiValue}
+          onChange={onChangeWrap}
+          blanks={(item.answer as any)?.blanks?.length ?? 1}
+        />
+      )}
 
-            {/* <div className="border rounded p-4 space-y-2"> */}
-            <ReportIssuePanel item={item} />
-            {/* </div> */}
+      {renderKind === "ordering" && (
+        <OrderingInput
+          items={item.choices ?? []}
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
 
-        </div>
-    );
+      {renderKind === "matching" && (
+        <MatchingInput
+          left={(item.choices ?? []).slice(0, Math.ceil((item.choices?.length ?? 2) / 2))}
+          right={(item.choices ?? []).slice(Math.ceil((item.choices?.length ?? 2) / 2))}
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
+
+      {renderKind === "tablefill" && (
+        <TableFillInput
+          shape={{
+            rows: (item.answer as any)?.cells?.length ?? 2,
+            cols: (item.answer as any)?.cells?.[0]?.length ?? 2
+          }}
+          value={uiValue}
+          onChange={onChangeWrap}
+        />
+      )}
+
+      {/* 手寫板（選用）：仍可存在，但與提交答案解耦 */}
+      <Workpad onExport={(json, png) => onChangeWrap({ ...(value || {}), work: { json, png } })} />
+
+      {/* ✅ 新增：每題都有「提交答案」按鈕（不需要跑步驟評估也能提交） */}
+      <div className="flex items-center gap-3">
+        <button
+          className="px-3 py-2 rounded bg-black text-white disabled:opacity-50"
+          onClick={onSubmitAnswer}
+          disabled={!rawAnswerForSubmit || submitting}
+          title={!rawAnswerForSubmit ? "請先輸入本題答案" : ""}
+        >
+          {submitting ? "提交中…" : "提交答案"}
+        </button>
+        {judge != null && (
+          <span className="text-sm">{judge ? "✅ 答對" : "❌ 答錯"}</span>
+        )}
+        {errorMsg && <span className="text-xs text-red-600">{errorMsg}</span>}
+      </div>
+
+      {/* 計算過程評估：改為「可選」，不再 gate 提交答案 */}
+      <ProcessEvaluate item={item} answerValue={uiValue} />
+
+      <ReportIssuePanel item={item} />
+    </div>
+  );
 }
